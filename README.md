@@ -8,6 +8,12 @@ By pulling 50-100 headlines from Google News RSS on any topic, we can stitch tog
 
 This app proves that **headlines alone contain enough signal** to generate high-quality news summaries. Perfect for content creators, researchers, and anyone wanting to customize news content.
 
+## Screenshot
+
+![Headlines.AI Interface](screenshot.png)
+
+*Split-panel view: headlines on the left, AI-generated summary on the right*
+
 ## What This Project Teaches
 
 - 🔍 **Agentic Search Patterns**: How to aggregate content from public sources and synthesize it with AI

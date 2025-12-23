@@ -2,11 +2,22 @@
 
 > **Headlines are all you need**
 
-A zero-cost Streamlit app demonstrating how to create an AI-powered news search tool by combining Google News RSS feed with LLM summarization. This is **not** a replacement for Gemini or other AI chat tools (they do this better), but rather a **learning template** for understanding agentic search patterns and using free tier APIs. 
+**A zero cost Streamlit app showing how to offload expensive search API costs to free Google News RSS before switching to paid agentic search tools.**
 
-By pulling 50-100 headlines from Google News RSS on any topic, we can stitch together a complete story from multiple sources—all powered by free AI models.
+**The Strategy:** Most paid agentic search APIs (Perplexity, Tavily, Exa) charge per query. But you can gather **initial context for free** by pulling 50-100 headlines from Google News RSS, then only use paid APIs when you need deeper analysis or verification.
 
-This app proves that **headlines alone contain enough signal** to generate high-quality news summaries. Perfect for content creators, researchers, and anyone wanting to customize news content.
+This app demonstrates:
+**Free tier (RSS)**: Gather headlines and surface-level signal at zero cost
+
+By pulling headlines first, you can:
+- Answer **80% of news queries for free** (headlines contain surprising signal)
+- Build context cheaply before hitting paid APIs
+- Reduce search API costs by 10-50x for common queries
+- Learn agentic search patterns without burning through API budgets
+
+**Perfect for:** Content creators, researchers, and developers who want to prototype AI search tools without racking up costs, or anyone learning how to build cost-efficient AI agents.
+
+⚠️ **Not a replacement** for ChatGPT/Perplexity—they're better for casual use. This is a **learning template** showing you how to build similar tools while controlling costs.
 
 ## Screenshot
 

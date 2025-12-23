@@ -5,7 +5,7 @@ import time
 import logging
 import requests
 
-def fetch_google_news(query, days=7, verbose=True):
+def fetch_google_news(query, days=7, verbose=False):
     """
     Fetch Google News headlines for a given search query
     
@@ -65,13 +65,15 @@ def fetch_google_news(query, days=7, verbose=True):
         for index, item in enumerate(feed.entries, 1):
             headline_data = {
                 'title': item.title,
-                'published': item.published
+                'published': item.published,
+                'source': item.source.title
             }
             headlines.append(headline_data)
             
             if verbose:
                 print(f'{index}. {item.title}')
-                print(f'   📅 Published: {item.published}\n')
+                print(f'   📅 Published: {item.published}')
+                print(f'   📰 Source: {item.source.title}\n')
         
         logging.info(f"fetch_google_news: Collected {len(headlines)} headlines, returning")
         return headlines
@@ -111,4 +113,4 @@ def fetch_multiple_news():
 
 if __name__ == "__main__":
     # fetch_multiple_news()
-    fetch_google_news("aravalli latest news", 7)
+    fetch_google_news("technology news", 7)

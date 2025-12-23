@@ -51,3 +51,6 @@ tmp/
 output.md
 pdf_processor.py
 Untitled
+
+*.json
+search_cache.json

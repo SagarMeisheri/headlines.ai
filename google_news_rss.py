@@ -1,6 +1,7 @@
 import feedparser
 from urllib.parse import quote
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, List
 import time
 import logging
 import requests
@@ -110,6 +111,44 @@ def fetch_multiple_news():
     # Fetch all queries concurrently using ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=5) as executor:
         executor.map(lambda q: fetch_google_news(q, days), queries)
+
+def fetch_all_categories(categories: Dict[str, str], days: int = 7) -> Dict[str, List[Dict]]:
+    """
+    Fetch news for all categories in parallel.
+    
+    Args:
+        categories: Dict mapping category name to search query
+                   e.g., {"Tech": "technology news", "Business": "business news"}
+        days: Number of days to look back (default: 7)
+        
+    Returns:
+        Dict mapping category name to list of headlines
+        e.g., {"Tech": [{"title": "...", "published": "...", "source": "..."}]}
+    """
+    results = {}
+    logging.info(f"fetch_all_categories: Starting parallel fetch for {len(categories)} categories")
+    
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        # Submit all fetch tasks
+        future_to_category = {
+            executor.submit(fetch_google_news, query, days, False): category
+            for category, query in categories.items()
+        }
+        
+        # Collect results as they complete
+        for future in as_completed(future_to_category):
+            category = future_to_category[future]
+            try:
+                headlines = future.result()
+                results[category] = headlines
+                logging.info(f"fetch_all_categories: {category} completed with {len(headlines)} headlines")
+            except Exception as e:
+                logging.error(f"fetch_all_categories: {category} failed with error: {str(e)}")
+                results[category] = []  # Empty list on error
+    
+    logging.info(f"fetch_all_categories: All categories fetched. Total: {sum(len(h) for h in results.values())} headlines")
+    return results
+
 
 if __name__ == "__main__":
     # fetch_multiple_news()

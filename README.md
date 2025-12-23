@@ -2,17 +2,14 @@
 
 > **Headlines are all you need**
 
-**A zero cost Streamlit app showing how to offload expensive search API costs to free Google News RSS before switching to paid agentic search tools.**
+A zero cost Streamlit app showing how to offload expensive search API costs to free Google News RSS before switching to paid agentic search tools.
 
 **The Strategy:** Most paid agentic search APIs (Perplexity, Tavily, Exa) charge per query. But you can gather **initial context for free** by pulling 50-100 headlines from Google News RSS, then only use paid APIs when you need deeper analysis or verification.
-
-This app demonstrates:
-**Free tier (RSS)**: Gather headlines and surface-level signal at zero cost
 
 By pulling headlines first, you can:
 - Answer **80% of news queries for free** (headlines contain surprising signal)
 - Build context cheaply before hitting paid APIs
-- Reduce search API costs by 10-50x for common queries
+- Reduce search API costs for common queries
 - Learn agentic search patterns without burning through API budgets
 
 **Perfect for:** Content creators, researchers, and developers who want to prototype AI search tools without racking up costs, or anyone learning how to build cost-efficient AI agents.

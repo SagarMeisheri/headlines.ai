@@ -1,6 +1,6 @@
 # Headlines.AI
 
-> **Headline is all you need**
+> **Headlines are all you need**
 
 A zero-cost Streamlit app demonstrating how to create an AI-powered news search tool by combining Google News RSS feed with LLM summarization. This is **not** a replacement for Gemini or other AI chat tools (they do this better), but rather a **learning template** for understanding agentic search patterns and using free tier APIs. 
 

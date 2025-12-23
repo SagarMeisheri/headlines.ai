@@ -45,10 +45,10 @@ st.set_page_config(
 # ===========================================
 # Session State Initialization
 # ===========================================
-if 'current_view' not in st.session_state:
-    st.session_state.current_view = 'new'  # 'new' or 'cached'
 if 'current_data' not in st.session_state:
-    st.session_state.current_data = None
+    st.session_state.current_data = None  # Custom search data (shown as dynamic tab)
+if 'pending_search' not in st.session_state:
+    st.session_state.pending_search = None  # {query, days} - triggers search inside tab
 if 'category_data' not in st.session_state:
     st.session_state.category_data = {}  # {category: {headlines, summary, timestamp}}
 if 'fetch_triggered' not in st.session_state:
@@ -216,40 +216,108 @@ def get_category_emoji(category: str) -> str:
     }
     return emojis.get(category, "📰")
 
-def render_custom_search():
-    """Render custom search results."""
-    if st.session_state.current_view == 'cached' and st.session_state.current_data:
-        cached = st.session_state.current_data
+def render_custom_search_tab():
+    """Render custom search results in a tab."""
+    # Check if there's a pending search to execute
+    if st.session_state.pending_search:
+        pending = st.session_state.pending_search
+        query = pending['query']
+        days = pending['days']
         
-        # Show cache indicator
-        search_date = datetime.fromisoformat(cached['timestamp'])
-        formatted_date = search_date.strftime("%B %d, %Y at %I:%M %p")
-        st.info(f"📚 Viewing cached results from {formatted_date}")
+        # Clear button in header
+        col_header, col_clear = st.columns([4, 1])
+        with col_header:
+            st.subheader(f"🔍 Searching: {query}")
+        with col_clear:
+            if st.button("✕ Cancel", key="cancel_search", help="Cancel this search"):
+                st.session_state.pending_search = None
+                st.session_state.current_data = None
+                st.rerun()
         
-        st.success(f"✅ Found {len(cached['headlines'])} articles for '{cached['query']}'")
+        # Check cache first
+        cached_search = get_search_by_query(query)
+        if cached_search and cached_search.get('days') == days:
+            st.session_state.current_data = cached_search
+            st.session_state.pending_search = None
+            st.rerun()
+            return
+        
+        # Fetch headlines
+        with st.spinner(f'Fetching news for "{query}"...'):
+            headlines = fetch_google_news(query, days=days, verbose=False)
+        
+        if not headlines:
+            st.error(f"❌ No news found for '{query}'. Try a different search term.")
+            st.session_state.pending_search = None
+            return
+        
+        st.success(f"✅ Found {len(headlines)} articles")
         
         # Create two columns
         col1, col2 = st.columns([1, 1])
         
-        # Left column: Headlines
+        # Left column: Headlines (show immediately)
         with col1:
             st.subheader("📋 Headlines")
             st.markdown("---")
-            render_headlines_list(cached['headlines'])
+            render_headlines_list(headlines)
         
-        # Right column: AI Summary
+        # Right column: Generate summary with streaming
         with col2:
             st.subheader("🤖 AI Summary")
             st.markdown("---")
-            st.markdown(cached['summary'])
-        
-        # Add button to clear cached view
-        if st.button("🔄 Back to Categories"):
-            st.session_state.current_view = 'new'
+            try:
+                summary = st.write_stream(summarize_headlines_stream(headlines))
+                # Save to cache and session state
+                add_search_to_cache(query, days, headlines, summary)
+                st.session_state.current_data = {
+                    'query': query,
+                    'days': days,
+                    'headlines': headlines,
+                    'summary': summary,
+                    'timestamp': datetime.now().isoformat(),
+                    'num_articles': len(headlines)
+                }
+                st.session_state.pending_search = None
+            except Exception as e:
+                st.error(f"❌ Error generating summary: {str(e)}")
+                st.info("💡 Make sure your OPENROUTER_API_KEY is set in the .env file")
+        return
+    
+    # Display existing search results
+    if not st.session_state.current_data:
+        st.info("👈 Use the sidebar to search for a specific topic")
+        return
+    
+    cached = st.session_state.current_data
+    
+    # Header with clear button
+    col_header, col_clear = st.columns([4, 1])
+    with col_header:
+        search_date = datetime.fromisoformat(cached['timestamp'])
+        formatted_date = search_date.strftime("%B %d, %Y at %I:%M %p")
+        st.caption(f"🕐 Searched: {formatted_date}")
+    with col_clear:
+        if st.button("✕ Clear", key="clear_search", help="Close this search tab"):
             st.session_state.current_data = None
             st.rerun()
-    else:
-        st.info("👈 Use the sidebar to search for a specific topic")
+    
+    st.success(f"✅ Found {len(cached['headlines'])} articles for '{cached['query']}'")
+    
+    # Create two columns
+    col1, col2 = st.columns([1, 1])
+    
+    # Left column: Headlines
+    with col1:
+        st.subheader("📋 Headlines")
+        st.markdown("---")
+        render_headlines_list(cached['headlines'])
+    
+    # Right column: AI Summary
+    with col2:
+        st.subheader("🤖 AI Summary")
+        st.markdown("---")
+        st.markdown(cached['summary'])
 
 # ===========================================
 # Main App Layout
@@ -311,15 +379,14 @@ if recent_searches:
             help=f"{formatted_date} - {search['num_articles']} articles",
             use_container_width=True
         ):
-            st.session_state.current_view = 'cached'
             st.session_state.current_data = search
             st.rerun()
     
     if st.sidebar.button("🗑️ Clear History", use_container_width=True):
         clear_cache()
         clear_category_cache()
-        st.session_state.current_view = 'new'
         st.session_state.current_data = None
+        st.session_state.pending_search = None
         st.session_state.category_data = {}
         st.session_state.fetch_triggered = False
         st.rerun()
@@ -340,59 +407,44 @@ if not st.session_state.fetch_triggered:
 # Handle Custom Search
 # ===========================================
 if search_button and query:
-    # Check if we have a cached version
-    cached_search = get_search_by_query(query)
-    
-    if cached_search and cached_search.get('days') == days:
-        st.session_state.current_view = 'cached'
-        st.session_state.current_data = cached_search
-        st.rerun()
-    else:
-        # Perform new search
-        with st.spinner(f'Searching for "{query}"...'):
-            headlines = fetch_google_news(query, days=days, verbose=False)
-        
-        if headlines:
-            try:
-                # Stream the summary generation
-                st.subheader("🤖 Generating Summary...")
-                summary = st.write_stream(summarize_headlines_stream(headlines))
-                add_search_to_cache(query, days, headlines, summary)
-                st.session_state.current_view = 'cached'
-                st.session_state.current_data = {
-                    'query': query,
-                    'days': days,
-                    'headlines': headlines,
-                    'summary': summary,
-                    'timestamp': datetime.now().isoformat(),
-                    'num_articles': len(headlines)
-                }
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-        else:
-            st.error(f"No news found for '{query}'")
+    # Set pending search - actual search happens inside the tab
+    st.session_state.pending_search = {'query': query, 'days': days}
+    st.session_state.current_data = None  # Clear any previous search
+    st.rerun()
 
 # ===========================================
 # Main Content - Tabbed Interface
 # ===========================================
 
-# Check if viewing custom search results
-if st.session_state.current_view == 'cached' and st.session_state.current_data:
-    render_custom_search()
-else:
-    # Create tabs: Dashboard + Category tabs
-    tab_names = ["📊 Dashboard"] + [f"{get_category_emoji(cat)} {cat}" for cat in CATEGORIES.keys()]
-    tabs = st.tabs(tab_names)
-    
-    # Dashboard tab
-    with tabs[0]:
-        render_dashboard()
-    
-    # Individual category tabs
-    for idx, category in enumerate(CATEGORIES.keys(), 1):
-        with tabs[idx]:
-            render_category_tab(category)
+# Build tab names: Dashboard + Categories + optional Search tab
+tab_names = ["📊 Dashboard"] + [f"{get_category_emoji(cat)} {cat}" for cat in CATEGORIES.keys()]
+
+# Add search tab if there's a pending or completed search
+has_search_tab = False
+if st.session_state.pending_search:
+    query = st.session_state.pending_search['query']
+    tab_names.append(f"🔍 {query[:20]}{'...' if len(query) > 20 else ''}")
+    has_search_tab = True
+elif st.session_state.current_data:
+    query = st.session_state.current_data['query']
+    tab_names.append(f"🔍 {query[:20]}{'...' if len(query) > 20 else ''}")
+    has_search_tab = True
+
+tabs = st.tabs(tab_names)
+
+# Dashboard tab
+with tabs[0]:
+    render_dashboard()
+
+# Individual category tabs
+for idx, category in enumerate(CATEGORIES.keys(), 1):
+    with tabs[idx]:
+        render_category_tab(category)
+
+# Custom search tab (if active)
+if has_search_tab:
+    with tabs[-1]:
+        render_custom_search_tab()
 
 # ===========================================
 # Footer

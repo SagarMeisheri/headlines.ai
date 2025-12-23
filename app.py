@@ -399,9 +399,15 @@ else:
 if not st.session_state.fetch_triggered:
     st.session_state.fetch_triggered = True
     # Load from cache first
-    load_categories_from_cache()
-    # Then fetch fresh data in parallel
-    fetch_fresh_categories(days=7)
+    cached_categories = load_categories_from_cache()
+    
+    # Only fetch fresh data if cache is empty or incomplete
+    if len(cached_categories) < len(CATEGORIES):
+        with st.spinner("📡 Fetching latest headlines from all categories..."):
+            fetch_fresh_categories(days=7)
+    else:
+        # Cache was valid, just set the last refresh time from cache
+        st.session_state.last_refresh = datetime.now()
 
 # ===========================================
 # Handle Custom Search
